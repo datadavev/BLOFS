@@ -76,6 +76,9 @@ def mount_container(source, manifest, mountpoint, foreground) -> None:
 @click.option("--pid", default="id", help="Base path for content.")
 def serve_http(source, manifest, pid) -> None:
     fs = blofs.tarfs.TarManifestFileSystem(tar_path=source, manifest_path=manifest)
+
+    # TODO: the geo part really should be a property of the file system, then it would
+    #       be available as a "special" file when mounted as well.
     features = []
     for _, value in fs.files.items():
         if value["type"] == "file":

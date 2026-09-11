@@ -48,7 +48,7 @@ Create an uncompressed tar file of `a`:
 $ tar --no-mac-metadata --no-xattrs -cvf test1.tar a
 ```
 
-Create a manifest for the uncompressed tar, including metadata properties in the manifest (metadata entries are ientified by file name):
+Create a manifest for the uncompressed tar, including metadata properties in the manifest (metadata entries are identified by file name):
 ```
 $ blofs index test1.tar metadata.ndjson manifest.ndjson
 ```
