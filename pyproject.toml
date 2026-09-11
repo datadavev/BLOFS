@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = [
   { name = "Dave Vieglais", email = "datadavev@gmail.com" },
 ]
-description = "Binary Large Object File System with versioning and spatial awareness."
+description = "Binary Large Object File System with spatial awareness."
 readme = "README.md"
 requires-python = ">=3.14"
 classifiers = [

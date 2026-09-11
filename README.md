@@ -4,7 +4,16 @@
 [![PyPI version][pypi-version]][pypi-link]
 [![PyPI platforms][pypi-platforms]][pypi-link]
 
-Binary Large Object File System with versioning and spatial awareness.
+Binary Large Object File System with spatial awareness.
+
+This is an exploration of leveraging the fsspec for serving custom content via FUSE and over HTTP.
+
+This implementation creates a manifest for an uncompressed bundle of files, and includes in the index basic spatial properties (longitude and latitude). The tar file can be mounted as a file system, with the driver using the manifest to provide an index into the tar for navigation. The tar can also be served as a folder of content over http, with the manifest providing the file locations similarly to the FUSE mount.
+
+The general goal is to facilitate the distribution of many (perhaps thousands or millions) files by bundling into two files: the tar and the manifest.
+
+In this example, an ndjson file is used as the manifest, though other formats such as sqlite or parquet would also be effective.
+
 
 ## Installation
 
