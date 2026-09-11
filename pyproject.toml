@@ -85,6 +85,9 @@ disallow_incomplete_defs = false
 check_untyped_defs = true
 strict = false
 
+[[tool.mypy.overrides]]
+module = ["fsspec.*", "mfusepy", "geojson", "ndjson"]
+ignore_missing_imports = true
 
 [tool.ruff]
 src = ["src"]
@@ -119,6 +122,8 @@ select = [
 ignore = [
   "PLR",    # Design related pylint codes
   "ISC001", # Conflicts with formatter
+  "ARG002",
+  "SIM115",
 ]
 unfixable = [
   "F401",   # Would remove unused imports

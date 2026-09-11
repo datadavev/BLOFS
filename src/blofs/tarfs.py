@@ -8,30 +8,33 @@ import stat
 import tarfile
 
 import fsspec
-from fsspec.spec import AbstractBufferedFile
 import mfusepy as fuse
 import ndjson
+from fsspec.spec import AbstractBufferedFile
 
 
-def get_logger()->logging.Logger:
+def get_logger() -> logging.Logger:
     return logging.getLogger("blofs.entries")
 
-IGNORE_ENTRIES = [".DS_Store", ]
 
-def is_ignored(name:str) -> bool:
+IGNORE_ENTRIES = [
+    ".DS_Store",
+]
+
+
+def is_ignored(name: str) -> bool:
     parts = name.rsplit("/", 1)
     return parts[-1] in IGNORE_ENTRIES
 
+
 def create_tar_index(
-    source_tar:pathlib.Path,
-    source_metadata: pathlib.Path,
-    dest:pathlib.Path
-)->int:
+    source_tar: pathlib.Path, source_metadata: pathlib.Path, dest: pathlib.Path
+) -> int:
     with source_metadata.open("r", encoding="utf-8") as md_source:
         metadata = ndjson.load(md_source)
     # create an index for fast lookup of path
     metadata_map = {}
-    for i in range(0, len(metadata)):
+    for i in range(len(metadata)):
         metadata_map[metadata[i]["name"]] = i
     # create the manifest
     manifest = []
@@ -39,7 +42,7 @@ def create_tar_index(
         for member in tar.getmembers():
             if is_ignored(member.name):
                 continue
-            entry:dict[str,str|int|float] = {
+            entry: dict[str, str | int | float] = {
                 "name": member.name,
             }
             if member.isfile():
@@ -63,12 +66,13 @@ def create_tar_index(
 
 class TarManifestFileSystem(fsspec.AbstractFileSystem):
     """Custom fsspec filesystem backed by a precomputed tar manifest."""
+
     protocol = "tarmanifest"
 
     def __init__(self, tar_path, manifest_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tar_path = tar_path
-        with open(manifest_path, "r") as f:
+        with open(manifest_path) as f:
             self.manifest = ndjson.load(f)
 
         self.dirs = set()
@@ -90,40 +94,38 @@ class TarManifestFileSystem(fsspec.AbstractFileSystem):
 
         for fpath, meta in self.files.items():
             if path == "" or fpath.startswith(prefix):
-                rel = fpath[len(prefix):] if prefix else fpath
+                rel = fpath[len(prefix) :] if prefix else fpath
                 parts = rel.split("/")
                 name = parts[0]
                 if name and name not in seen:
                     seen.add(name)
                     full_name = f"{path}/{name}" if path else name
                     if len(parts) == 1:
-                        results.append({
-                            "name": full_name,
-                            "size": meta["size"],
-                            "type": "file",
-                            "offset": meta["offset"]
-                        })
+                        results.append(
+                            {
+                                "name": full_name,
+                                "size": meta["size"],
+                                "type": "file",
+                                "offset": meta["offset"],
+                            }
+                        )
                     else:
-                        results.append({
-                            "name": full_name,
-                            "size": 0,
-                            "type": "directory"
-                        })
+                        results.append(
+                            {"name": full_name, "size": 0, "type": "directory"}
+                        )
 
         for d in self.dirs:
             if path == "" or (d.startswith(prefix) and d != path):
-                rel = d[len(prefix):] if prefix else d
+                rel = d[len(prefix) :] if prefix else d
                 parts = rel.split("/")
                 name = parts[0]
                 if name and name not in seen:
                     seen.add(name)
                     full_name = f"{path}/{name}" if path else name
                     if len(parts) == 1:
-                        results.append({
-                            "name": full_name,
-                            "size": 0,
-                            "type": "directory"
-                        })
+                        results.append(
+                            {"name": full_name, "size": 0, "type": "directory"}
+                        )
 
         if not detail:
             return [r["name"] for r in results]
@@ -142,7 +144,7 @@ class TarManifestFileSystem(fsspec.AbstractFileSystem):
                 "name": path,
                 "size": meta["size"],
                 "type": "file",
-                "offset": meta["offset"]
+                "offset": meta["offset"],
             }
         msg = f"Path not found: {path}"
         raise FileNotFoundError(msg)
@@ -158,6 +160,7 @@ class TarManifestFileSystem(fsspec.AbstractFileSystem):
 class TarFileSeekableFile(AbstractBufferedFile):
     """File-like object that reads slices of the tar archive using absolute byte
     offsets."""
+
     def __init__(self, fs, path, mode="rb", **kwargs):
         super().__init__(fs, path, mode=mode, **kwargs)
         if mode != "rb":
@@ -180,16 +183,17 @@ class TarFileSeekableFile(AbstractBufferedFile):
 
 class FSSpecFUSE(fuse.Operations):
     """FUSE operations adapter using an fsspec filesystem instance."""
+
     def __init__(self, fs: fsspec.AbstractFileSystem):
         self.fs = fs
         self.fd_counter = 0
-        self.open_files = {}
+        self.open_files: dict = {}  # type: ignore[var-annotated]
 
     def getattr(self, path, fh=None):
         try:
             info = self.fs.info(path)
         except FileNotFoundError:
-            raise fuse.FuseOSError(errno.ENOENT)
+            raise fuse.FuseOSError(errno.ENOENT) from None
 
         if info["type"] == "directory":
             st_mode = stat.S_IFDIR | 0o555
@@ -199,22 +203,22 @@ class FSSpecFUSE(fuse.Operations):
             st_size = info["size"]
 
         return {
-            'st_mode': st_mode,
-            'st_nlink': 1,
-            'st_size': st_size,
-            'st_ctime': 0,
-            'st_mtime': 0,
-            'st_atime': 0,
+            "st_mode": st_mode,
+            "st_nlink": 1,
+            "st_size": st_size,
+            "st_ctime": 0,
+            "st_mtime": 0,
+            "st_atime": 0,
         }
 
     def readdir(self, path, fh):
-        entries = ['.', '..']
+        entries = [".", ".."]
         try:
             listing = self.fs.ls(path, detail=False)
             for item in listing:
                 entries.append(os.path.basename(item))
         except FileNotFoundError:
-            raise fuse.FuseOSError(errno.ENOENT)
+            raise fuse.FuseOSError(errno.ENOENT) from None
         return entries
 
     def open(self, path, flags):
@@ -224,7 +228,7 @@ class FSSpecFUSE(fuse.Operations):
             f = self.fs.open(path, "rb")
             self.open_files[fd] = f
         except FileNotFoundError:
-            raise fuse.FuseOSError(errno.ENOENT)
+            raise fuse.FuseOSError(errno.ENOENT) from None
         return fd
 
     def read(self, path, size, offset, fh):

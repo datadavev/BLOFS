@@ -20,7 +20,7 @@ python -m pip install .
 Given a folder with contents:
 
 ```
-$ tree 
+$ tree
 .
 ├── a
 │   ├── img1.jpg
