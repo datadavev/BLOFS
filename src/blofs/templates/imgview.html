@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapLibre GeoJSON URL & Lightbox</title>
+    <!-- MapLibre GL CSS CDN -->
+    <link href="https://unpkg.com/maplibre-gl@5.3.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Thumbnail styling for map markers */
+        .map-thumbnail {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .map-thumbnail:hover {
+            transform: scale(1.15);
+        }
+
+        /* Lightbox Overlay */
+        #lightbox {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        #lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- Lightbox container -->
+    <div id="lightbox">
+        <img id="lightbox-img" src="" alt="Enlarged view">
+    </div>
+
+    <!-- MapLibre GL JS CDN -->
+    <script src="https://unpkg.com/maplibre-gl@5.3.0/dist/maplibre-gl.js"></script>
+    <script>
+        const GEOJSON_URL = '/{{pid}}/geojson'; // Replace with your URL
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'osm-tiles': {
+                        type: 'raster',
+                        tiles: [
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+                        ],
+                        tileSize: 256,
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }
+                },
+                layers: [
+                    {
+                        id: 'osm-layer',
+                        type: 'raster',
+                        source: 'osm-tiles',
+                        minzoom: 0,
+                        maxzoom: 19
+                    }
+                ]
+            },
+            center: [0, 20],
+            zoom: 2
+        });
+
+        // Lightbox Elements
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+
+        // Close lightbox when clicking anywhere on it
+        lightbox.addEventListener('click', () => {
+            lightbox.style.display = 'none';
+        });
+
+        // Close lightbox when pressing the Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox.style.display === 'flex') {
+                lightbox.style.display = 'none';
+            }
+        });
+
+        map.on('load', async () => {
+            try {
+                const response = await fetch(GEOJSON_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const geojson = await response.json();
+
+                // Loop through features and render markers
+                geojson.features.forEach(feature => {
+                    // Safety check: ensure coordinates exist and feature has an image property
+                    if (!feature.geometry || !feature.geometry.coordinates || !feature.properties?.image) {
+                        return;
+                    }
+
+                    const coordinates = feature.geometry.coordinates;
+                    const imageUrl = feature.properties.image;
+
+                    // Create a custom HTML image element for the marker thumbnail
+                    const imgElement = document.createElement('img');
+                    imgElement.src = imageUrl;
+                    imgElement.className = 'map-thumbnail';
+
+                    // Setup click behavior to open the lightbox
+                    imgElement.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        lightboxImg.src = imageUrl;
+                        lightbox.style.display = 'flex';
+                    });
+
+                    // Add the Marker to the Map using the custom DOM element
+                    new maplibregl.Marker({ element: imgElement })
+                        .setLngLat(coordinates)
+                        .addTo(map);
+                });
+
+            } catch (error) {
+                console.error("Failed to load or parse the GeoJSON file:", error);
+            }
+        });
+    </script>
+</body>
+</html>
