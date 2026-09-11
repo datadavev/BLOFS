@@ -26,7 +26,7 @@ python -m pip install .
 
 ## Usage
 
-Given a folder with contents:
+Given a folder with contents (example under `tests/data`):
 
 ```
 $ tree
